@@ -27,7 +27,7 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #include <xc.h>
-#include <htc.h>
+
 #include "LCD4bits.h"
 #include "LCD4bits_setup.h"
 
@@ -72,15 +72,61 @@
 #define valid RB3	//bouton poussoir S2
 #define droite RB4	//bouton poussoir S3
 
+#define	appuye 0	// état logique pour un appui sur un bouton
+#define relache 1	// état logique pour un bouton relâché
+#define Commande RB5	//sortie de commande 
+#define buzz RC3 // sortie buzzer
 //définitions des variables
 
-char dixième,sec,min,heure;
+char centieme,sec,min;
 
 //Déclaration des prototypes des fonctions
 
-//--------------------------------------------------------------
-// Programme d'initialisation
-//--------------------------------------------------------------
+
+void init(void);
+
+void interrupt prog();
+
+int afficher_temps(int x,int y);
+    
+//************************************************************************
+//      Main
+//************************************************************************
+
+int main()
+{ 
+    init();
+    lcd_setup(1);
+    lcd_Clr();
+    lcd_print("IUT: Module ER2");
+    lcd_GotoXY(3,1);
+    lcd_print("Arbitrage");
+    __delay_ms(800);
+    lcd_Clr();
+    afficher_temps(5,0);
+    buzz=0;
+  while(1)
+      {
+      lcd_GotoXY(0,1);
+      lcd_printNum(TMR1-32768);
+      centieme=(TMR1-32768)%100;
+      afficher_temps(5,0);
+      
+      /*
+        buzz=1;
+        Commande=1;
+        __delay_ms(100);
+        buzz=0;
+        Commande=0;
+        __delay_ms(10000);
+        */
+      }
+}
+    
+//****************************************************************
+//      Définition des fonctions
+//****************************************************************
+
 void init(void)
 {
 OSCCON=0b01110111; //Oscillateur interne réglé sur 8Mhz
@@ -107,6 +153,7 @@ PIE1=  0b00000001;        // Active interruption sur overflow du timer 1
 PIE2=  0b00000000;        // Désactive toute les autres interruptions
 T1CON= 0b00001011;       // Timer1 activer, prescaler reglé sur 1:1, EXTERNAL, sur front montant, oscillateur on
 
+GIE=1;
 }
 
 void interrupt prog(){
@@ -116,42 +163,55 @@ if(TMR1IF==1)
     TMR1H= 0b01111111; // 8 bits de poids forts de la valeur de préchargement
     TMR1L= 0b11111111; // 8 bits de poids faibles de la valeur de préchargement
     TMR1IF=0;
-    
-
-
-
-
-}
-
-int main()
-{
-  while(1)
-      {
-
-          if(sec>=60){
+    if(sec>=60){
               min++;
               sec=0;
               }
           if(min>=60){
-              heure++;
+              
               min=0;
-              }
-          if(heure>=24){
-              heure=0;
               sec=0;
-              min=0;
               }
-          Afficher_temp(5,0);
-          Afficher_heure(4,1);
-          lcd_GotoXY(15,1);
-          lcd_print(">");
-
-           if(droite==appuye){
-              page_reg=1;
-              lcd_Clr();
-           }
 
 
 
-      }
+
 }
+}
+int afficher_temps(int x,int y)
+{
+    
+    lcd_GotoXY(x+2,y);
+    lcd_print(":");
+    lcd_GotoXY(x+5,y);
+    lcd_print(":");
+    
+    lcd_GotoXY(x,y);
+    
+    if(min<10){
+        lcd_print("0");
+        lcd_printNum(min);
+    }
+    else{
+        lcd_printNum(min);
+    }
+    lcd_GotoXY(x+3,y);
+    if(sec<10){
+        lcd_print("0");
+        lcd_printNum(sec);
+    }
+    else{lcd_printNum(sec);
+    }
+    
+     
+    lcd_GotoXY(x+6,y);
+    if(centieme<10){
+        lcd_print("0"); 
+        lcd_printNum(centieme);
+    }
+    else{
+        lcd_printNum(centieme);
+    }
+    
+}
+ 
