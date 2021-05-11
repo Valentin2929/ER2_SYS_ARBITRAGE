@@ -76,9 +76,15 @@
 #define relache 1	// état logique pour un bouton relâché
 #define Commande RB5	//sortie de commande 
 #define buzz RC3 // sortie buzzer
+#define flash RC4 //
+
+
 //définitions des variables
 
 char centieme,sec,min;
+int x,y;
+
+char old_state_sec,old_state_min;
 
 //Déclaration des prototypes des fonctions
 
@@ -95,6 +101,8 @@ int afficher_temps(int x,int y);
 
 int main()
 { 
+    x=5;
+    y=0;
     init();
     lcd_setup(1);
     lcd_Clr();
@@ -103,15 +111,103 @@ int main()
     lcd_print("Arbitrage");
     __delay_ms(800);
     lcd_Clr();
-    afficher_temps(5,0);
     buzz=0;
-  while(1)
-      {
-      lcd_GotoXY(0,1);
-      lcd_printNum(TMR1-32768);
-      centieme=(TMR1-32768)%100;
-      afficher_temps(5,0);
+    flash=0;
+    
+    while(gauche == relache){};
+    lcd_GotoXY(7,0);
+        __delay_ms(1000);
+        lcd_Clr();
+        lcd_print("3");
+        
+        __delay_ms(1000);
+        lcd_Clr();
+        lcd_print("2");
+        
+        __delay_ms(1000);
+        lcd_Clr();
+        lcd_print("1");
+        
+        __delay_ms(1000);
+        
+        
+        buzz=1;
+        flash=0;
+        __delay_ms(500);
+        buzz=0;
+        flash=1;
+        // ici on démarre le chrono
+        GIE=1;  // les interruptions
+        T1CON= 0b00001011; // active le TMR1
+        lcd_Clr();
+    afficher_temps(5,0);
+    while(1)
+    {
+        // les old_state permettent de n'afficher que quand la valeur change
+    old_state_min=min;
+    old_state_sec=sec;
       
+    lcd_GotoXY(0,1);
+    lcd_printNum(TMR1-32768);
+    centieme=(TMR1-32768)%100;
+      
+    lcd_GotoXY(x+2,y);
+    lcd_print(":");
+    lcd_GotoXY(x+5,y);
+    lcd_print(":");
+    lcd_GotoXY(x+8,y);
+    lcd_print(" ");
+    
+    lcd_GotoXY(x,y);
+    if(sec>=60)
+    {
+        sec=0;
+        min++;
+    }
+    if(min!=old_state_min)
+    {
+        if(min<10)
+        {
+            lcd_print("0");
+            lcd_printNum(min);
+        }
+
+        else
+        {
+            lcd_printNum(min);
+        }
+
+    }
+    
+    if(sec!=old_state_sec)
+    {
+   
+        lcd_GotoXY(x+3,y);
+        if(sec<10)
+        {
+            lcd_print("0");
+            lcd_printNum(sec);
+        }
+
+        else
+        {
+            lcd_printNum(sec);
+        }
+    
+    }
+    
+    
+            
+    lcd_GotoXY(x+6,y);
+    if(centieme<10)
+    {
+        lcd_print("0"); 
+        lcd_printNum(centieme);
+    }
+    else
+    {
+        lcd_printNum(centieme);
+    }
       /*
         buzz=1;
         Commande=1;
@@ -120,7 +216,8 @@ int main()
         Commande=0;
         __delay_ms(10000);
         */
-      }
+    }
+    
 }
     
 //****************************************************************
@@ -137,7 +234,7 @@ TRISC= 0b00000000; // Port C en sortie,
 ANSEL= 0b00000001;	// AN0 est en entrée digitale
 ANSELH=0b00000000;
 
-WPUB=  0b00011100;		// config individuelle des R pull Up
+WPUB= 0b00011100;		// config individuelle des R pull Up
 nRBPU=0;			//Résistances de pull up ENABLE
 
 CCP1CON=0;	//désactive comparateur et module pwm
@@ -151,33 +248,24 @@ ADCON1=0b10010000;
 INTCON=0b01000000;      // Active les interruption, sur les périphérique
 PIE1=  0b00000001;        // Active interruption sur overflow du timer 1
 PIE2=  0b00000000;        // Désactive toute les autres interruptions
-T1CON= 0b00001011;       // Timer1 activer, prescaler reglé sur 1:1, EXTERNAL, sur front montant, oscillateur on
+//T1CON= 0b00001011;       // Timer1 activer, prescaler reglé sur 1:1, EXTERNAL, sur front montant, oscillateur on
 
-GIE=1;
+//GIE=1;
 }
 
-void interrupt prog(){
+void interrupt prog()
+{
 if(TMR1IF==1)
 {
     sec++;
     TMR1H= 0b01111111; // 8 bits de poids forts de la valeur de préchargement
     TMR1L= 0b11111111; // 8 bits de poids faibles de la valeur de préchargement
     TMR1IF=0;
-    if(sec>=60){
-              min++;
-              sec=0;
-              }
-          if(min>=60){
-              
-              min=0;
-              sec=0;
-              }
-
-
-
+    
+}
 
 }
-}
+
 int afficher_temps(int x,int y)
 {
     
@@ -185,31 +273,42 @@ int afficher_temps(int x,int y)
     lcd_print(":");
     lcd_GotoXY(x+5,y);
     lcd_print(":");
+    lcd_GotoXY(x+8,y);
+    lcd_print(" ");
     
     lcd_GotoXY(x,y);
     
-    if(min<10){
+    if(min<10)
+    {
         lcd_print("0");
         lcd_printNum(min);
     }
-    else{
+    else
+    {
         lcd_printNum(min);
     }
     lcd_GotoXY(x+3,y);
-    if(sec<10){
+    
+    if(sec<10)
+    {
         lcd_print("0");
         lcd_printNum(sec);
     }
-    else{lcd_printNum(sec);
+    else
+    {
+        lcd_printNum(sec);
     }
     
      
     lcd_GotoXY(x+6,y);
-    if(centieme<10){
+   
+    if(centieme<10)
+    {
         lcd_print("0"); 
         lcd_printNum(centieme);
     }
-    else{
+    else
+    {
         lcd_printNum(centieme);
     }
     
