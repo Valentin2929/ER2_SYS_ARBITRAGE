@@ -14,7 +14,7 @@
 //   Date:              13/04/2021
 //   File Version:      0.1
 //
-//   Author:            Mathys LE ROUX, ...
+//   Author:            Valentin BIHAN, ...
 //   Company:           IUT Brest, département GEII
 //
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -27,6 +27,7 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #include <xc.h>
+#include <stdio.h>
 
 #include "LCD4bits.h"
 #include "LCD4bits_setup.h"
@@ -99,8 +100,15 @@ int afficher_temps(int x,int y);
 //      Main
 //************************************************************************
 
+
+/*
+ lancer le timer au tout et sans l'interuption et précharger au start du chrono pour "chauffer" le timer
+ 
+ 
+ */
 int main()
 { 
+    unsigned char start,sure;
     x=5;
     y=0;
     init();
@@ -114,18 +122,77 @@ int main()
     buzz=0;
     flash=0;
     
-    while(gauche == relache){};
-    lcd_GotoXY(7,0);
-        __delay_ms(1000);
+    
+    
+        
+	while(1)
+    {
+    T1CON= 0b00000000;          // desactive le TMR1
+    GIE=0;		
+    lcd_Clr();
+    afficher_temps(5,0);
+    lcd_GotoXY(8,1);
+    lcd_print(">");
+    lcd_GotoXY(0,1);
+    lcd_print("R");
+    
+    __delay_ms(100);
+    while(valid == relache){
+        
+        if(gauche==appuye)
+        {
+            sure=0;
+            lcd_Clr();
+            while(sure==0)
+            {
+                
+                lcd_GotoXY(0,0);
+                lcd_print("Confirmer la RAZ");
+                lcd_GotoXY(7,1);
+                lcd_print("Oui");
+                lcd_GotoXY(13,1);
+                lcd_print("Non");
+                if(valid==appuye)
+                {
+                    lcd_Clr();
+                    min=0;
+                    sec=0;
+                    TMR1=32700; // 8 bits de poids faibles de la valeur de préchargement 
+                    sure=1;
+                    
+                }
+                if(droite==appuye)
+                {
+                    
+                    lcd_Clr();
+                    sure=1;
+                    
+                }
+            }
+            afficher_temps(5,0); 
+            lcd_GotoXY(8,1);
+            lcd_print(">");
+            lcd_GotoXY(0,1);
+            lcd_print("R");
+            __delay_ms(200);
+        }
+    }
+    
+    if(min==0 && sec==0 && centieme==0){
+    
+    __delay_ms(1000);
         lcd_Clr();
+        lcd_GotoXY(8,0);
         lcd_print("3");
         
         __delay_ms(1000);
         lcd_Clr();
+        lcd_GotoXY(8,0);
         lcd_print("2");
         
         __delay_ms(1000);
         lcd_Clr();
+        lcd_GotoXY(8,0);
         lcd_print("1");
         
         __delay_ms(1000);
@@ -136,90 +203,42 @@ int main()
         __delay_ms(500);
         buzz=0;
         flash=1;
-        // ici on démarre le chrono
-        GIE=1;  // les interruptions
-        T1CON= 0b00001011; // active le TMR1
-        lcd_Clr();
+    }
+    
+    
+    T1CON= 0b00001011;    // active le TMR1
+    GIE=1;
+    TMR1H= 0b01111111; // 8 bits de poids forts de la valeur de préchargement
+    TMR1L= 0b11111111; // 8 bits de poids faibles de la valeur de préchargement
+    lcd_Clr();
+    start=1;
     afficher_temps(5,0);
-    while(1)
-    {
-        // les old_state permettent de n'afficher que quand la valeur change
+    while(start==1)
+    {   
+	
+    
+    
+    lcd_GotoXY(14,1);
+	lcd_print("||");
     old_state_min=min;
     old_state_sec=sec;
-      
-    lcd_GotoXY(0,1);
-    lcd_printNum(TMR1-32768);
-    centieme=(TMR1-32768)%100;
-      
-    lcd_GotoXY(x+2,y);
-    lcd_print(":");
-    lcd_GotoXY(x+5,y);
-    lcd_print(":");
-    lcd_GotoXY(x+8,y);
-    lcd_print(" ");
     
-    lcd_GotoXY(x,y);
+    if(droite==appuye)
+    {
+        start=0;
+    }
     if(sec>=60)
     {
         sec=0;
         min++;
     }
-    if(min!=old_state_min)
-    {
-        if(min<10)
-        {
-            lcd_print("0");
-            lcd_printNum(min);
-        }
-
-        else
-        {
-            lcd_printNum(min);
-        }
-
-    }
-    
-    if(sec!=old_state_sec)
-    {
-   
-        lcd_GotoXY(x+3,y);
-        if(sec<10)
-        {
-            lcd_print("0");
-            lcd_printNum(sec);
-        }
-
-        else
-        {
-            lcd_printNum(sec);
-        }
-    
-    }
+    afficher_temps(5,0);
     
     
-            
-    lcd_GotoXY(x+6,y);
-    if(centieme<10)
-    {
-        lcd_print("0"); 
-        lcd_printNum(centieme);
+ 
     }
-    else
-    {
-        lcd_printNum(centieme);
     }
-      /*
-        buzz=1;
-        Commande=1;
-        __delay_ms(100);
-        buzz=0;
-        Commande=0;
-        __delay_ms(10000);
-        */
-    }
-    
 }
-    
 //****************************************************************
 //      Définition des fonctions
 //****************************************************************
@@ -245,9 +264,9 @@ SSPEN=0;
 ADCON0=0b10000001;
 ADCON1=0b10010000;
 
-INTCON=0b01000000;      // Active les interruption, sur les périphérique
-PIE1=  0b00000001;        // Active interruption sur overflow du timer 1
-PIE2=  0b00000000;        // Désactive toute les autres interruptions
+INTCON= 0b01000000;      // Active les interruption, sur les périphérique
+PIE1=   0b00000001;        // Active interruption sur overflow du timer 1
+PIE2=   0b00000000;        // Désactive toute les autres interruptions
 //T1CON= 0b00001011;       // Timer1 activer, prescaler reglé sur 1:1, EXTERNAL, sur front montant, oscillateur on
 
 //GIE=1;
@@ -273,7 +292,7 @@ int afficher_temps(int x,int y)
     lcd_print(":");
     lcd_GotoXY(x+5,y);
     lcd_print(":");
-    lcd_GotoXY(x+8,y);
+    lcd_GotoXY(x+8,y);                                                                                                                  
     lcd_print(" ");
     
     lcd_GotoXY(x,y);
@@ -281,36 +300,18 @@ int afficher_temps(int x,int y)
     if(min<10)
     {
         lcd_print("0");
-        lcd_printNum(min);
     }
-    else
-    {
-        lcd_printNum(min);
-    }
+    lcd_printNum(min);
     lcd_GotoXY(x+3,y);
     
     if(sec<10)
     {
         lcd_print("0");
-        lcd_printNum(sec);
-    }
-    else
-    {
-        lcd_printNum(sec);
     }
     
+    lcd_printNum(sec);
      
     lcd_GotoXY(x+6,y);
    
-    if(centieme<10)
-    {
-        lcd_print("0"); 
-        lcd_printNum(centieme);
-    }
-    else
-    {
-        lcd_printNum(centieme);
-    }
-    
+        lcd_printNum((TMR1)%100);
 }
- 
